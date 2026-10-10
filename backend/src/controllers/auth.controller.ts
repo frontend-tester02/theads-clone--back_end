@@ -1,8 +1,9 @@
 import type { CookieOptions, Request, Response } from 'express'
 import { loginSchema, registerSchema } from '../utils/validations.js'
-import { loginUser, registerUser } from '../services/auth.service.js'
+import { getMe, loginUser, registerUser } from '../services/auth.service.js'
 import { toPublicUser } from '../models/user.model.js'
 import { accessTokenMaxAgeMs, signAccessToken } from '../utils/token.js'
+import { HttpError } from '../utils/http-error.js'
 
 const ACCESS_TOKEN_COOKIE = 'access_token'
 
@@ -39,4 +40,19 @@ export async function login(req: Request, res: Response): Promise<void> {
 	res.cookie(ACCESS_TOKEN_COOKIE, token, cookieOptions)
 
 	res.status(200).json({ data: toPublicUser(user) })
+}
+
+/**
+ * GET /api/auth/me
+ * Returns the authenticated user's public profile. Protected by `requireAuth`,
+ * which populates `req.user` from the access-token cookie.
+ */
+export async function me(req: Request, res: Response): Promise<void> {
+	if (!req.user) {
+		throw new HttpError(401, 'Not authenticated')
+	}
+
+	const user = await getMe(req.user.id)
+
+	res.status(200).json({ data: user })
 }

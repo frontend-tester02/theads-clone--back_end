@@ -24,6 +24,25 @@ export function signAccessToken(payload: AccessTokenPayload): string {
 }
 
 /**
+ * Verifies a JWT access token and returns its `{ sub }` payload.
+ * Reads `JWT_SECRET` (required) from the env. Throws when the token is invalid,
+ * expired, or missing the expected `sub` claim.
+ */
+export function verifyAccessToken(token: string): AccessTokenPayload {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('JWT_SECRET is not set.');
+  }
+
+  const decoded = jwt.verify(token, secret);
+  if (typeof decoded !== 'object' || typeof decoded.sub !== 'string') {
+    throw new Error('Token payload is missing the "sub" claim.');
+  }
+
+  return { sub: decoded.sub };
+}
+
+/**
  * Converts `JWT_EXPIRES_IN` into milliseconds so a cookie's `maxAge` matches the
  * token's lifetime. Accepts a bare number (seconds, per the JWT convention) or a
  * string like "7d", "12h", "30m", "60s".

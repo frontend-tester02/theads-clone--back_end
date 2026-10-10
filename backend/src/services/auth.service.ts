@@ -56,3 +56,18 @@ export async function loginUser(input: LoginInput): Promise<UserDocument> {
 
   return user;
 }
+
+/**
+ * Returns the public profile of the authenticated user.
+ * Throws `404` when no user matches the given id (e.g. a deleted account whose
+ * token is still valid).
+ */
+export async function getMe(userId: string): Promise<PublicUser> {
+  const user = await UserModel.findById(userId);
+
+  if (!user) {
+    throw new HttpError(404, 'User not found');
+  }
+
+  return toPublicUser(user);
+}

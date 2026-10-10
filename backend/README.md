@@ -1,11 +1,11 @@
 # Threads clone backend
 
-Node.js, Express, TypeScript va Mongoose asosidagi boshlang‘ich loyiha.
-Node.js 24 LTS va npm ishlating.
+A starter project built with Node.js, Express, TypeScript and Mongoose.
+Use Node.js 24 LTS and npm.
 
-## O‘rnatish
+## Setup
 
-Loyiha ildizidan:
+From the project root:
 
 ```sh
 cd backend
@@ -13,21 +13,27 @@ npm install
 cp .env.example .env
 ```
 
-`.env` ichida `MONGODB_URI` qiymatini o‘zingizning MongoDB ulanish manzilingiz bilan to‘ldiring.
-`PORT` standart qiymati `5000`, `CLIENT_URL` esa `http://localhost:3000`.
-Haqiqiy ulanish manzili va `.env` faylini Git’ga qo‘shmang.
-MongoDB ishga tushgan va serverdan unga ulanish mumkin bo‘lishi kerak.
-`MONGODB_URI` bo‘sh bo‘lsa yoki ulanish amalga oshmasa, server ishga tushmaydi.
+Fill in `.env`:
 
-## Ishga tushirish
+- `MONGODB_URI` — your MongoDB connection string (required).
+- `JWT_SECRET` — a long random string used to sign JWTs (required).
+- `JWT_EXPIRES_IN` — token lifetime, default `7d`.
+- `PORT` — default `8080`.
+- `CLIENT_URL` — default `http://localhost:3000`.
 
-Ishlab chiqish rejimi (fayllar o‘zgarsa avtomatik qayta ishga tushadi):
+Never commit your real `.env` or connection string to Git. MongoDB must be running and
+reachable from the server. The server will not start if `JWT_SECRET` is missing or
+`MONGODB_URI` is empty/unreachable.
+
+## Running
+
+Development mode (auto-restarts on file changes):
 
 ```sh
 npm run dev
 ```
 
-TypeScript tekshiruvi va build:
+Type-check and build:
 
 ```sh
 npm run typecheck
@@ -35,35 +41,35 @@ npm run build
 npm start
 ```
 
-Qo‘shimcha kod tekshiruvi: `npm run lint`.
+Extra code check: `npm run lint`.
 
-Server ishga tushgach:
+Once the server is running:
 
 ```sh
-curl http://localhost:5000/health
+curl http://localhost:8080/check
 ```
 
-Javob: `{ "status": "ok" }`. Bu endpoint HTTP server holatini bildiradi.
+Response: `{ "status": "Welcome to Threads" }`. This endpoint reports the HTTP server status.
 
 ## API
 
-Barcha biznes endpointlari `/api` bilan boshlanadi (API versiyasi ishlatilmaydi).
+All business endpoints are prefixed with `/api` (no API version segment).
 
 ### `POST /api/auth/register`
 
-Yangi foydalanuvchini ro‘yxatdan o‘tkazadi. Parol hech qachon ochiq saqlanmaydi —
-faqat uning bcrypt hash’i bazaga yoziladi va javobda `passwordHash` qaytarilmaydi.
+Registers a new user. The password is never stored in plain text — only its bcrypt hash
+is saved, and `passwordHash` is never returned in the response.
 
 Request body (JSON):
 
-| Maydon        | Tur    | Talab                                                                    |
-| ------------- | ------ | ------------------------------------------------------------------------ |
-| `username`    | string | 3–30 belgi; faqat harf, raqam, `_`, `.`; trim + lowercase’ga keltiriladi |
-| `email`       | string | To‘g‘ri email; trim + lowercase’ga keltiriladi                           |
-| `password`    | string | 8–72 belgi                                                               |
-| `displayName` | string | 1–50 belgi                                                               |
+| Field         | Type   | Requirement                                                      |
+| ------------- | ------ | ---------------------------------------------------------------- |
+| `username`    | string | 3–30 chars; letters, numbers, `_`, `.`; trimmed and lowercased   |
+| `email`       | string | Valid email; trimmed and lowercased                              |
+| `password`    | string | 8–72 chars                                                       |
+| `displayName` | string | 1–50 chars                                                       |
 
-So‘rov namunasi:
+Example request:
 
 ```sh
 curl -X POST http://localhost:8080/api/auth/register \
@@ -76,7 +82,7 @@ curl -X POST http://localhost:8080/api/auth/register \
   }'
 ```
 
-Muvaffaqiyatli javob — `201 Created`:
+Successful response — `201 Created`:
 
 ```json
 {
@@ -95,11 +101,10 @@ Muvaffaqiyatli javob — `201 Created`:
 }
 ```
 
-Xato javoblari `{ "error": { "message": ... } }` formatida bo‘ladi:
+Error responses use the `{ "error": { "message": ... } }` shape:
 
-- `400 Bad Request` — validatsiya xatosi (noto‘g‘ri email, qisqa parol, noto‘g‘ri
-  username formati va h.k.). Javobda `error.details` ichida har bir maydon bo‘yicha
-  tushuntirish bo‘ladi:
+- `400 Bad Request` — validation error (invalid email, short password, invalid username
+  format, etc.). The response includes a per-field explanation under `error.details`:
 
   ```json
   {
@@ -110,36 +115,27 @@ Xato javoblari `{ "error": { "message": ... } }` formatida bo‘ladi:
   }
   ```
 
-- `409 Conflict` — `username` yoki `email` allaqachon band (bir vaqtda kelgan bir xil
-  so‘rovlardagi MongoDB duplicate-key holati ham shu kodga aylanadi):
+- `409 Conflict` — `username` or `email` is already taken (a MongoDB duplicate-key from
+  concurrent identical requests also maps to this code):
 
   ```json
   { "error": { "message": "Email is already taken." } }
   ```
 
-### `POST /api/auth/login`
+### `GET /api/auth/me`
 
-Foydalanuvchini username orqali tekshiradi. Muvaffaqiyatda JWT token yaratilib,
-`httpOnly` cookie (`access_token`) sifatida o‘rnatiladi — token javob tanasida
-qaytarilmaydi. `JWT_SECRET` majburiy, token muddati `JWT_EXPIRES_IN`
-(default `7d`) orqali boshqariladi va cookie `maxAge` ham shunga mos bo‘ladi.
+Returns the authenticated user's public profile. Protected — it reads the `access_token`
+httpOnly cookie set at login and verifies the JWT. The token is never read from the body
+or a header.
 
-Request body (JSON):
-
-| Maydon     | Tur    | Talab                           |
-| ---------- | ------ | ------------------------------- |
-| `username` | string | Username (trim + lowercase)     |
-| `password` | string | Bo‘sh bo‘lmasin                 |
-
-So‘rov namunasi:
+Example request (reusing the cookie saved at login):
 
 ```sh
-curl -X POST http://localhost:8080/api/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{ "username": "jamshid", "password": "supersecret1" }'
+curl http://localhost:8080/api/auth/me \
+  -b 'access_token=<jwt-from-login-cookie>'
 ```
 
-Muvaffaqiyatli javob — `200 OK` (va `Set-Cookie: access_token=...; HttpOnly; SameSite=Lax`):
+Successful response — `200 OK`:
 
 ```json
 {
@@ -156,12 +152,22 @@ Muvaffaqiyatli javob — `200 OK` (va `Set-Cookie: access_token=...; HttpOnly; S
 }
 ```
 
-Username topilmasa yoki parol noto‘g‘ri bo‘lsa — ikkala holatda ham bir xil
-`401 Unauthorized` (qaysi maydon xato ekani oshkor qilinmaydi):
+Error responses use the `{ "error": { "message": ... } }` shape:
 
-```json
-{ "error": { "message": "Invalid credentials." } }
-```
+- `401 Unauthorized` — no access-token cookie was sent:
 
-Hozircha JWT bilan himoyalangan endpointlar, email tasdiqlash, follow va post
-funksiyalari qo‘shilmagan.
+  ```json
+  { "error": { "message": "Not authenticated" } }
+  ```
+
+- `401 Unauthorized` — the token is invalid or expired:
+
+  ```json
+  { "error": { "message": "Invalid token" } }
+  ```
+
+- `404 Not Found` — the token is valid but no matching user exists (e.g. a deleted account):
+
+  ```json
+  { "error": { "message": "User not found" } }
+  ```
