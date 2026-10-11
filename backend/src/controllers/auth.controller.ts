@@ -8,6 +8,18 @@ import { HttpError } from '../utils/http-error.js'
 const ACCESS_TOKEN_COOKIE = 'access_token'
 
 /**
+ * Base attributes of the access-token cookie, shared by login (set) and logout
+ * (clear). The browser only removes a cookie when these attributes match the
+ * ones it was set with, so both paths must use the same values.
+ */
+const accessCookieOptions: CookieOptions = {
+	httpOnly: true,
+	sameSite: 'lax',
+	secure: process.env.NODE_ENV === 'production',
+	path: '/',
+}
+
+/**
  * POST /api/auth/register
  * Validates the request body with Zod and creates a new user.
  * Errors (validation, taken username/email, duplicate-key) are forwarded
@@ -31,13 +43,10 @@ export async function login(req: Request, res: Response): Promise<void> {
 
 	const token = signAccessToken({ sub: user.id })
 
-	const cookieOptions: CookieOptions = {
-		httpOnly: true,
-		sameSite: 'lax',
-		secure: process.env.NODE_ENV === 'production',
+	res.cookie(ACCESS_TOKEN_COOKIE, token, {
+		...accessCookieOptions,
 		maxAge: accessTokenMaxAgeMs(),
-	}
-	res.cookie(ACCESS_TOKEN_COOKIE, token, cookieOptions)
+	})
 
 	res.status(200).json({ data: toPublicUser(user) })
 }
@@ -55,4 +64,15 @@ export async function me(req: Request, res: Response): Promise<void> {
 	const user = await getMe(req.user.id)
 
 	res.status(200).json({ data: user })
+}
+
+/**
+ * POST /api/auth/logout
+ * Clears the access-token cookie. Uses the same cookie attributes as login so
+ * the browser actually removes it. Protected by `requireAuth`.
+ */
+export async function logout(_req: Request, res: Response): Promise<void> {
+	res.clearCookie(ACCESS_TOKEN_COOKIE, accessCookieOptions)
+
+	res.status(200).json({ data: { message: 'Logged out' } })
 }

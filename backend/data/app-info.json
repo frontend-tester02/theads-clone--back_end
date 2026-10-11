@@ -1,0 +1,5 @@
+{
+  "name": "Threads Clone API",
+  "version": "0.1.0",
+  "description": "A REST API for a Threads-like social app, built with Express, TypeScript, and MongoDB."
+}

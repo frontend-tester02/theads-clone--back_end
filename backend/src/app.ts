@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import cookieParser from 'cookie-parser'
 import { authRouter } from './routes/auth.routes.js'
+import { infoRouter } from './routes/info.routes.js'
 import { errorHandler } from './middleware/error-handler.js'
 
 export const app = express()
@@ -17,6 +18,7 @@ app.get('/check', (_req, res) => {
 })
 
 app.use('/api/auth', authRouter)
+app.use('/api/info', infoRouter)
 
 // Central handler that returns errors in a single format — after all routes.
 app.use(errorHandler)

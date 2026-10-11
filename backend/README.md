@@ -171,3 +171,23 @@ Error responses use the `{ "error": { "message": ... } }` shape:
   ```json
   { "error": { "message": "User not found" } }
   ```
+
+### `POST /api/auth/logout`
+
+Clears the `access_token` cookie. Protected — only a logged-in user can log out. The cookie
+is cleared with the same attributes it was set with, so the browser actually removes it.
+
+Example request (reusing the cookie saved at login):
+
+```sh
+curl -X POST http://localhost:8080/api/auth/logout \
+  -b 'access_token=<jwt-from-login-cookie>'
+```
+
+Successful response — `200 OK`:
+
+```json
+{ "data": { "message": "Logged out" } }
+```
+
+- `401 Unauthorized` — no valid access-token cookie was sent (same shape as `GET /api/auth/me`).
